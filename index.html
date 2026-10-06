@@ -1,58 +1,959 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="dark h-full">
 <head>
   <meta charset="UTF-8">
-  <title>ブラウザ内 HEVC 変換アプリ</title>
-  <!-- 外部URL(unpkg)ではなく、同じフォルダのファイルを読み込む -->
-  <script src="./coi-serviceworker.min.js"></script>
-</head>
-<body>
-  <h2>HEVC / MOV 変換アプリ (ブラウザ完結型)</h2>
-  <input type="file" id="uploader" accept="video/*">
-  <button id="convertBtn">変換開始</button>
-  <p id="status"></p>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FLUX // Next-Gen Web Video Transcoder</title>
+  
+  <!-- Primary PWA Meta Tags -->
+  <meta name="theme-color" content="#090d16">
+  <meta name="description" content="Ultra-fast, private browser-based video conversion powered by WebAssembly & FFmpeg.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FLUX Converter">
 
-  <!-- FFmpeg.wasm スクリプト読み込み -->
-  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+              950: '#090d16',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'spin-slow': 'spin 8s linear infinite',
+            'glow-pulse': 'glow 2s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            glow: {
+              '0%': { boxShadow: '0 0 15px rgba(99, 102, 241, 0.2)' },
+              '100%': { boxShadow: '0 0 35px rgba(99, 102, 241, 0.6)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <!-- Inline Cross-Origin Isolation Worker to automatically inject COOP/COEP headers for SharedArrayBuffer -->
+  <script>
+    if (typeof window !== 'undefined' && !window.crossOriginIsolated && 'serviceWorker' in navigator) {
+      const coiWorkerCode = `
+        self.addEventListener('install', () => self.skipWaiting());
+        self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+        self.addEventListener('fetch', event => {
+          if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
+          event.respondWith(
+            fetch(event.request).then(response => {
+              if (response.status === 0) return response;
+              const newHeaders = new Headers(response.headers);
+              newHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
+              newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
+              return new Response(response.body, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: newHeaders
+              });
+            }).catch(e => fetch(event.request))
+          );
+        });
+      `;
+      try {
+        const blob = new Blob([coiWorkerCode], { type: 'application/javascript' });
+        const coiUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(coiUrl).then(reg => {
+          if (reg.active && !navigator.serviceWorker.controller) {
+            window.location.reload();
+          }
+        }).catch(err => console.warn('COI SW registration skipped:', err));
+      } catch (e) {
+        console.warn('COI script init error:', e);
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d16;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* Glassmorphism Styles */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-panel-interactive {
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-panel-interactive:hover {
+      background: rgba(30, 41, 59, 0.6);
+      border-color: rgba(99, 102, 241, 0.4);
+      box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Radial ambient backgrounds */
+    .ambient-bg {
+      background-image: 
+        radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.15), transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08), transparent 40%),
+        radial-gradient(circle at 10% 40%, rgba(6, 182, 212, 0.08), transparent 40%);
+    }
+
+    /* Target highlight zone */
+    .drag-active {
+      border-color: #6366f1 !important;
+      background: rgba(99, 102, 241, 0.12) !important;
+      transform: scale(1.005);
+    }
+  </style>
+</head>
+
+<body class="bg-[#090d16] text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-brand-500 selection:text-white ambient-bg">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-800/80 glass-panel">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <!-- Logo Badge -->
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-cyan-400 p-[1px] flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <div class="w-full h-full bg-slate-950 rounded-[11px] flex items-center justify-center">
+            <i class="ph-bold ph-lightning text-brand-400 text-lg"></i>
+          </div>
+        </div>
+        <div class="flex flex-col">
+          <div class="flex items-center space-x-2">
+            <span class="font-extrabold tracking-wider text-sm bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">FLUX</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20 font-semibold tracking-wide">STUDIO</span>
+          </div>
+          <span class="text-[10px] text-slate-400 -mt-0.5 font-mono">100% Client-Side WASM Engine</span>
+        </div>
+      </div>
+
+      <!-- Engine Status & PWA Actions -->
+      <div class="flex items-center space-x-3">
+        <!-- WASM Status Indicator -->
+        <div id="wasmStatusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-xs text-slate-300">
+          <span class="relative flex h-2 w-2">
+            <span id="wasmPulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span id="wasmDot" class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
+          <span id="wasmStatusText" class="font-mono text-[11px] text-slate-300">Engine Readying...</span>
+        </div>
+
+        <!-- PWA Install Button (Hidden by default until prompt available) -->
+        <button id="pwaInstallBtn" class="hidden items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 transition-all border border-slate-700">
+          <i class="ph-bold ph-download-simple text-sm text-brand-400"></i>
+          <span>App Install</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 flex flex-col justify-center">
+
+    <!-- COOP/COEP / SharedArrayBuffer Isolation Warning Banner -->
+    <div id="isolationBanner" class="hidden mb-6 p-4 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs leading-relaxed space-y-3">
+      <div class="flex items-start space-x-3">
+        <i class="ph-bold ph-warning-amber text-amber-400 text-xl flex-shrink-0 mt-0.5"></i>
+        <div class="space-y-1">
+          <h4 class="font-bold text-sm text-amber-300">Cross-Origin Isolation Required (SharedArrayBuffer)</h4>
+          <p class="text-amber-200/80">
+            FFmpeg.wasm requires <code class="bg-amber-900/60 px-1 py-0.5 rounded font-mono text-[11px]">SharedArrayBuffer</code> for WebAssembly video processing. 
+            When embedded in an iframe preview, browser security rules block shared memory access.
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2 pt-1 pl-8">
+        <button id="openNewTabBtn" class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs flex items-center space-x-1.5 transition shadow-lg shadow-amber-500/20">
+          <i class="ph-bold ph-arrow-square-out"></i>
+          <span>Open in New Tab / Window</span>
+        </button>
+        <button onclick="window.location.reload()" class="px-3 py-1.5 rounded-lg bg-amber-900/60 hover:bg-amber-800/80 text-amber-200 text-xs font-medium border border-amber-700/50 transition flex items-center space-x-1.5">
+          <i class="ph-bold ph-arrow-clockwise"></i>
+          <span>Reload Page</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- App Title Header Section -->
+    <div class="text-center mb-8 space-y-2">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-b from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+        Browser Video Transcoder
+      </h1>
+      <p class="text-sm sm:text-base text-slate-400 max-w-xl mx-auto font-normal">
+        Convert HEVC, MOV, MP4, and MKV videos directly inside your browser. Zero server uploads, maximum privacy, hardware accelerated.
+      </p>
+    </div>
+
+    <!-- MAIN VIEW CONTAINER -->
+    <div class="relative">
+
+      <!-- ========================================== -->
+      <!-- STATE 1: IDLE / DROPZONE VIEW -->
+      <!-- ========================================== -->
+      <div id="dropzoneView" class="block transition-all duration-300">
+        <label for="uploader" id="dropzone" class="glass-panel-interactive rounded-2xl p-8 sm:p-12 flex flex-col items-center justify-center cursor-pointer text-center relative overflow-hidden group">
+          
+          <!-- Subtle Glow Backdrop -->
+          <div class="absolute -inset-1 bg-gradient-to-r from-brand-500/10 via-cyan-500/10 to-violet-500/10 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-500"></div>
+
+          <!-- Icon Graphic -->
+          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-5 text-brand-400 group-hover:scale-110 group-hover:border-brand-500/40 group-hover:text-brand-300 transition-all duration-300 shadow-xl">
+            <i class="ph-thin ph-cloud-arrow-up text-3xl sm:text-4xl"></i>
+          </div>
+
+          <!-- Helper Text -->
+          <h2 class="text-lg sm:text-xl font-semibold text-slate-100 mb-1">
+            Drag & drop video file here
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-400 mb-6">
+            or <span class="text-brand-400 hover:underline font-medium">browse from your computer / phone</span>
+          </p>
+
+          <!-- Format Badges -->
+          <div class="flex flex-wrap justify-center gap-2 max-w-md">
+            <span class="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/60 text-[11px] font-mono text-slate-300">HEVC / H.265</span>
+            <span class="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/60 text-[11px] font-mono text-slate-300">Apple MOV</span>
+            <span class="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/60 text-[11px] font-mono text-slate-300">MP4</span>
+            <span class="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/60 text-[11px] font-mono text-slate-300">MKV</span>
+            <span class="px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/60 text-[11px] font-mono text-slate-300">WEBM</span>
+          </div>
+
+          <p class="mt-6 text-[11px] text-slate-500 flex items-center space-x-1">
+            <i class="ph-bold ph-shield-check text-emerald-400"></i>
+            <span>Files are processed locally in your web worker sandbox</span>
+          </p>
+
+          <input type="file" id="uploader" accept="video/*,.mov,.hevc,.mp4,.mkv,.avi" class="hidden">
+        </label>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- STATE 2: SELECTED FILE & PRESET VIEW -->
+      <!-- ========================================== -->
+      <div id="selectedView" class="hidden transition-all duration-300">
+        <div class="glass-panel rounded-2xl p-6 sm:p-8 space-y-6">
+          
+          <!-- Top Bar: Selected File Info Card -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl bg-slate-900/90 border border-slate-800 gap-4">
+            <div class="flex items-center space-x-4 min-w-0 w-full sm:w-auto">
+              <!-- Video Thumbnail Container -->
+              <div class="relative w-20 h-14 rounded-lg bg-slate-950 border border-slate-800 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <video id="sourcePreview" class="w-full h-full object-cover hidden"></video>
+                <i id="thumbPlaceholder" class="ph-bold ph-film-strip text-2xl text-slate-600"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <h3 id="fileName" class="text-sm font-semibold text-slate-100 truncate">video_file.mov</h3>
+                <div class="flex items-center space-x-3 text-xs text-slate-400 font-mono mt-1">
+                  <span id="fileSize">00.0 MB</span>
+                  <span>•</span>
+                  <span id="fileDuration">--:--</span>
+                  <span>•</span>
+                  <span id="fileFormat" class="uppercase text-brand-400 font-semibold">MOV</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Remove / Reselect button -->
+            <button id="cancelFileBtn" class="self-end sm:self-center px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition flex items-center space-x-1">
+              <i class="ph-bold ph-x"></i>
+              <span>Change File</span>
+            </button>
+          </div>
+
+          <!-- Encoding Preset Selector Grid -->
+          <div class="space-y-3">
+            <label class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+              <span>Transcode Settings Preset</span>
+              <span class="text-brand-400 text-[11px] font-normal font-mono">Target: H.264 / AAC MP4</span>
+            </label>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <!-- Fast Preset -->
+              <button type="button" data-preset="fast" class="preset-btn p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-left transition flex flex-col justify-between space-y-2">
+                <div class="flex items-center justify-between w-full">
+                  <span class="text-xs font-bold text-slate-200">Fast Convert</span>
+                  <i class="ph-bold ph-lightning text-amber-400 text-sm"></i>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-snug">Ultrafast encoding, ideal for quick drafts and low CPU load.</p>
+              </button>
+
+              <!-- Balanced Preset (Selected Default) -->
+              <button type="button" data-preset="balanced" class="preset-btn active p-3.5 rounded-xl border-2 border-brand-500 bg-brand-500/10 text-left transition flex flex-col justify-between space-y-2">
+                <div class="flex items-center justify-between w-full">
+                  <span class="text-xs font-bold text-white">Balanced (Recommended)</span>
+                  <i class="ph-bold ph-sliders text-brand-400 text-sm"></i>
+                </div>
+                <p class="text-[11px] text-slate-300 leading-snug">Optimal trade-off between speed, high fidelity, and file size.</p>
+              </button>
+
+              <!-- High Quality Preset -->
+              <button type="button" data-preset="high" class="preset-btn p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-left transition flex flex-col justify-between space-y-2">
+                <div class="flex items-center justify-between w-full">
+                  <span class="text-xs font-bold text-slate-200">High Quality</span>
+                  <i class="ph-bold ph-sparkle text-cyan-400 text-sm"></i>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-snug">Slower pass for maximum clarity and best compression efficiency.</p>
+              </button>
+            </div>
+          </div>
+
+          <!-- Advanced Video Adjustments (Resolution Scale) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-800/60">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Output Resolution</label>
+              <select id="resOption" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                <option value="original">Original Dimensions</option>
+                <option value="1080">1080p Full HD (Scale height 1080)</option>
+                <option value="720">720p HD (Scale height 720)</option>
+                <option value="480">480p SD (Scale height 480)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Audio Track</label>
+              <select id="audioOption" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                <option value="aac">Convert to AAC (High Compatibility)</option>
+                <option value="copy">Stream Copy Audio (Faster)</option>
+                <option value="an">Mute Audio Track</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Convert Action Button -->
+          <button id="startConvertBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-brand-600 via-brand-500 to-cyan-500 hover:from-brand-500 hover:to-cyan-400 text-white text-sm font-semibold shadow-lg shadow-brand-500/25 active:scale-[0.99] transition flex items-center justify-center space-x-2">
+            <i class="ph-bold ph-play text-base"></i>
+            <span>Start Conversion Now</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- STATE 3: CONVERTING / PROGRESS VIEW -->
+      <!-- ========================================== -->
+      <div id="progressView" class="hidden transition-all duration-300">
+        <div class="glass-panel rounded-2xl p-6 sm:p-10 space-y-6">
+          
+          <!-- Animated Stage Header -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-lg bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-brand-400 animate-spin">
+                <i class="ph-bold ph-spinner text-lg"></i>
+              </div>
+              <div>
+                <h3 id="processStage" class="text-sm font-semibold text-slate-100">Transcoding Video...</h3>
+                <p class="text-xs text-slate-400 font-mono">H.264 Encoder Running</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span id="elapsedTime" class="text-xs font-mono text-slate-400">00:00</span>
+            </div>
+          </div>
+
+          <!-- Progress Visualizer Bar & Ring -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs">
+              <span id="progressStatusText" class="text-slate-300 font-medium">Encoding video frames...</span>
+              <span id="progressPercent" class="font-mono text-brand-400 font-bold text-sm">0%</span>
+            </div>
+            
+            <!-- Progress Track -->
+            <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+              <div id="progressBar" class="h-full bg-gradient-to-r from-brand-500 via-violet-500 to-cyan-400 rounded-full transition-all duration-200 w-0"></div>
+            </div>
+          </div>
+
+          <!-- Live Log Toggle Drawer -->
+          <div class="pt-2">
+            <button id="toggleLogsBtn" class="text-xs font-mono text-slate-400 hover:text-slate-200 flex items-center space-x-1.5 focus:outline-none">
+              <i class="ph-bold ph-terminal-window"></i>
+              <span>Console Output Logs</span>
+              <i id="logChevron" class="ph-bold ph-caret-down transition-transform duration-200"></i>
+            </button>
+            <div id="logContainer" class="hidden mt-3 p-3 rounded-lg bg-slate-950 border border-slate-800/80 h-36 overflow-y-auto font-mono text-[11px] text-slate-400 space-y-1">
+              <p class="text-brand-400">[System initialized]</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- STATE 4: COMPLETED / DOWNLOAD VIEW -->
+      <!-- ========================================== -->
+      <div id="completedView" class="hidden transition-all duration-300">
+        <div class="glass-panel rounded-2xl p-6 sm:p-8 space-y-6 text-center">
+          
+          <!-- Success Badge -->
+          <div class="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/10">
+            <i class="ph-bold ph-check-circle text-3xl"></i>
+          </div>
+
+          <div>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-slate-100">Transcoding Complete!</h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">Your video is optimized and ready for web playback & sharing.</p>
+          </div>
+
+          <!-- Video Output Preview Player -->
+          <div class="max-w-md mx-auto rounded-xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl">
+            <video id="outputPreview" controls class="w-full h-auto max-h-64 object-contain bg-black"></video>
+          </div>
+
+          <!-- Compression Stats Summary Card -->
+          <div class="max-w-md mx-auto p-4 rounded-xl bg-slate-900/80 border border-slate-800 grid grid-cols-3 gap-2 text-center">
+            <div>
+              <span class="block text-[10px] uppercase font-mono text-slate-500">Original</span>
+              <span id="statOriginal" class="text-xs font-mono font-semibold text-slate-300">0 MB</span>
+            </div>
+            <div>
+              <span class="block text-[10px] uppercase font-mono text-slate-500">Converted</span>
+              <span id="statConverted" class="text-xs font-mono font-semibold text-brand-400">0 MB</span>
+            </div>
+            <div>
+              <span class="block text-[10px] uppercase font-mono text-slate-500">Saved</span>
+              <span id="statSaved" class="text-xs font-mono font-semibold text-emerald-400">0%</span>
+            </div>
+          </div>
+
+          <!-- Actions: Download & Convert Another -->
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto pt-2">
+            <button id="downloadBtn" class="w-full sm:flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center justify-center space-x-2">
+              <i class="ph-bold ph-download-simple text-base"></i>
+              <span>Download MP4</span>
+            </button>
+            <button id="resetBtn" class="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold transition border border-slate-700 flex items-center justify-center space-x-1.5">
+              <i class="ph-bold ph-arrow-counter-clockwise"></i>
+              <span>Convert Another</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full border-t border-slate-800/60 py-4 text-center text-xs text-slate-500 font-mono">
+    <p>FLUX Web Transcoder • Powered by FFmpeg.wasm & WebAssembly</p>
+  </footer>
+
+  <!-- Notification Toast Container -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 max-w-sm px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl text-xs text-slate-200 flex items-center space-x-2">
+    <i id="toastIcon" class="ph-bold ph-info text-brand-400 text-base"></i>
+    <span id="toastMsg">Notification message</span>
+  </div>
+
+  <!-- FFmpeg.wasm Script Loader -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+
+  <script>
+    // Dynamic Inline PWA Manifest creation
+    (function injectPWAManifest() {
+      const manifestObj = {
+        name: "FLUX Video Transcoder",
+        short_name: "FLUX",
+        start_url: "./",
+        display: "standalone",
+        background_color: "#090d16",
+        theme_color: "#090d16",
+        icons: [{
+          src: "https://placehold.co/192x192/090d16/6366f1?text=FLUX",
+          sizes: "192x192",
+          type: "image/png"
+        }, {
+          src: "https://placehold.co/512x512/090d16/6366f1?text=FLUX",
+          sizes: "512x512",
+          type: "image/png"
+        }]
+      };
+      const stringManifest = JSON.stringify(manifestObj);
+      const blob = new Blob([stringManifest], { type: 'application/json' });
+      const manifestURL = URL.createObjectURL(blob);
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = manifestURL;
+      document.head.appendChild(link);
+    })();
+
+    // Application Variables
     const { createFFmpeg, fetchFile } = FFmpeg;
-    const ffmpeg = createFFmpeg({ log: true });
+    let ffmpeg = null;
+    let selectedFile = null;
+    let convertedBlobUrl = null;
+    let convertedFileName = '';
+    let selectedPreset = 'balanced';
+    let startTime = 0;
+    let timerInterval = null;
+    let deferredPrompt = null;
 
+    // DOM Elements
+    const dropzone = document.getElementById('dropzone');
     const uploader = document.getElementById('uploader');
-    const convertBtn = document.getElementById('convertBtn');
-    const status = document.getElementById('status');
+    const dropzoneView = document.getElementById('dropzoneView');
+    const selectedView = document.getElementById('selectedView');
+    const progressView = document.getElementById('progressView');
+    const completedView = document.getElementById('completedView');
 
-    convertBtn.addEventListener('click', async () => {
-      const file = uploader.files[0];
-      if (!file) return alert('ファイルを選択してください');
+    const fileNameEl = document.getElementById('fileName');
+    const fileSizeEl = document.getElementById('fileSize');
+    const fileDurationEl = document.getElementById('fileDuration');
+    const fileFormatEl = document.getElementById('fileFormat');
+    const sourcePreview = document.getElementById('sourcePreview');
+    const thumbPlaceholder = document.getElementById('thumbPlaceholder');
 
-      status.innerText = 'FFmpegを読み込み中...';
-      if (!ffmpeg.isLoaded()) {
-        await ffmpeg.load();
+    const wasmStatusBadge = document.getElementById('wasmStatusBadge');
+    const wasmStatusText = document.getElementById('wasmStatusText');
+    const wasmPulse = document.getElementById('wasmPulse');
+    const wasmDot = document.getElementById('wasmDot');
+    const pwaInstallBtn = document.getElementById('pwaInstallBtn');
+
+    const startConvertBtn = document.getElementById('startConvertBtn');
+    const cancelFileBtn = document.getElementById('cancelFileBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressStatusText = document.getElementById('progressStatusText');
+    const processStage = document.getElementById('processStage');
+    const elapsedTime = document.getElementById('elapsedTime');
+    const logContainer = document.getElementById('logContainer');
+    const toggleLogsBtn = document.getElementById('toggleLogsBtn');
+    const logChevron = document.getElementById('logChevron');
+
+    const outputPreview = document.getElementById('outputPreview');
+    const statOriginal = document.getElementById('statOriginal');
+    const statConverted = document.getElementById('statConverted');
+    const statSaved = document.getElementById('statSaved');
+    const openNewTabBtn = document.getElementById('openNewTabBtn');
+
+    // Pre-flight check for SharedArrayBuffer / Isolation
+    function checkSharedArrayBufferSupport() {
+      const isSupported = typeof SharedArrayBuffer !== 'undefined';
+      const isolationBanner = document.getElementById('isolationBanner');
+      if (!isSupported && isolationBanner) {
+        isolationBanner.classList.remove('hidden');
+        updateWasmStatus('error', 'Isolation Required');
+      }
+      return isSupported;
+    }
+
+    if (openNewTabBtn) {
+      openNewTabBtn.addEventListener('click', () => {
+        window.open(window.location.href, '_blank');
+      });
+    }
+
+    // Initialize FFmpeg Core
+    async function initFFmpeg() {
+      if (ffmpeg) return;
+
+      if (!checkSharedArrayBufferSupport()) {
+        showToast('SharedArrayBuffer is restricted in this preview environment. Open in new tab.', 'error');
+        return;
       }
 
-      status.innerText = 'ファイルを読み込み中...';
-      ffmpeg.FS('writeFile', file.name, await fetchFile(file));
+      try {
+        ffmpeg = createFFmpeg({
+          log: true,
+          corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+        });
 
-      status.innerText = '変換中... (端末のスペックによっては時間がかかります)';
-      // H.264 + AAC に変換
-      await ffmpeg.run(
-        '-i', file.name,
-        '-c:v', 'libx264',
-        '-pix_fmt', 'yuv420p',
-        '-c:a', 'aac',
-        'output.mp4'
-      );
+        // Register logger listener for output console
+        ffmpeg.setLogger(({ type, message }) => {
+          appendLog(`[${type}] ${message}`);
+        });
 
-      status.innerText = '変換完了！ダウンロードを開始します...';
-      const data = ffmpeg.FS('readFile', 'output.mp4');
+        // Register progress callback
+        ffmpeg.setProgress(({ ratio }) => {
+          const pct = Math.min(Math.round(ratio * 100), 100);
+          if (!isNaN(pct)) {
+            progressBar.style.width = `${pct}%`;
+            progressPercent.innerText = `${pct}%`;
+          }
+        });
 
-      // ダウンロードリンクを生成
-      const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+        updateWasmStatus('loading', 'Loading WASM...');
+        await ffmpeg.load();
+        updateWasmStatus('ready', 'Engine Ready');
+      } catch (err) {
+        console.error('FFmpeg Init Error:', err);
+        updateWasmStatus('error', 'WASM Init Failed');
+        checkSharedArrayBufferSupport();
+        showToast('Failed to load WebAssembly engine. SharedArrayBuffer restricted.', 'error');
+      }
+    }
+
+    // WASM Engine Status UI Helper
+    function updateWasmStatus(status, text) {
+      wasmStatusText.innerText = text;
+      if (status === 'ready') {
+        wasmPulse.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+        wasmDot.className = 'relative inline-flex rounded-full h-2 w-2 bg-emerald-500';
+      } else if (status === 'loading') {
+        wasmPulse.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75';
+        wasmDot.className = 'relative inline-flex rounded-full h-2 w-2 bg-amber-500';
+      } else {
+        wasmPulse.className = 'hidden';
+        wasmDot.className = 'relative inline-flex rounded-full h-2 w-2 bg-rose-500';
+      }
+    }
+
+    // Drag & Drop Handlers
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('drag-active');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('drag-active');
+      });
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        handleFileSelect(files[0]);
+      }
+    });
+
+    uploader.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    // File Selection Handler
+    function handleFileSelect(file) {
+      if (!file.type.startsWith('video/') && !/\.(mov|hevc|mp4|mkv|avi|webm)$/i.test(file.name)) {
+        showToast('Please select a valid video file.', 'error');
+        return;
+      }
+
+      selectedFile = file;
+      fileNameEl.innerText = file.name;
+      fileSizeEl.innerText = formatBytes(file.size);
+      
+      const ext = file.name.split('.').pop();
+      fileFormatEl.innerText = ext ? ext.toUpperCase() : 'VIDEO';
+
+      // Load preview thumbnail & duration
+      const objectUrl = URL.createObjectURL(file);
+      sourcePreview.src = objectUrl;
+      sourcePreview.onloadedmetadata = () => {
+        sourcePreview.classList.remove('hidden');
+        thumbPlaceholder.classList.add('hidden');
+        fileDurationEl.innerText = formatDuration(sourcePreview.duration);
+      };
+
+      // Switch views
+      dropzoneView.classList.add('hidden');
+      selectedView.classList.remove('hidden');
+
+      // Pre-initialize WASM engine in background
+      initFFmpeg();
+    }
+
+    // Preset Selection Toggle Logic
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        presetBtns.forEach(b => {
+          b.classList.remove('active', 'border-2', 'border-brand-500', 'bg-brand-500/10');
+          b.classList.add('border-slate-800', 'bg-slate-900/60');
+        });
+        btn.classList.add('active', 'border-2', 'border-brand-500', 'bg-brand-500/10');
+        btn.classList.remove('border-slate-800', 'bg-slate-900/60');
+        selectedPreset = btn.getAttribute('data-preset');
+      });
+    });
+
+    cancelFileBtn.addEventListener('click', resetApp);
+    resetBtn.addEventListener('click', resetApp);
+
+    function resetApp() {
+      selectedFile = null;
+      if (convertedBlobUrl) {
+        URL.revokeObjectURL(convertedBlobUrl);
+        convertedBlobUrl = null;
+      }
+      uploader.value = '';
+      sourcePreview.src = '';
+      sourcePreview.classList.add('hidden');
+      thumbPlaceholder.classList.remove('hidden');
+
+      completedView.classList.add('hidden');
+      selectedView.classList.add('hidden');
+      progressView.classList.add('hidden');
+      dropzoneView.classList.remove('hidden');
+
+      progressBar.style.width = '0%';
+      progressPercent.innerText = '0%';
+      clearInterval(timerInterval);
+    }
+
+    // Start Conversion Workflow
+    startConvertBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      selectedView.classList.add('hidden');
+      progressView.classList.remove('hidden');
+      
+      processStage.innerText = 'Initializing WASM Engine...';
+      progressStatusText.innerText = 'Preparing memory buffer...';
+      progressBar.style.width = '2%';
+      progressPercent.innerText = '2%';
+
+      startTimer();
+
+      try {
+        if (!ffmpeg || !ffmpeg.isLoaded()) {
+          await initFFmpeg();
+        }
+
+        processStage.innerText = 'Reading Video File...';
+        progressStatusText.innerText = 'Loading file into WebAssembly Virtual FS...';
+        
+        const inputName = 'input_' + Date.now() + '_' + selectedFile.name.replace(/[^a-zA-Z0-9.]/g, '_');
+        const outputName = 'output_' + Date.now() + '.mp4';
+
+        ffmpeg.FS('writeFile', inputName, await fetchFile(selectedFile));
+
+        processStage.innerText = 'Transcoding to H.264...';
+        progressStatusText.innerText = 'Encoding frames (this may take a moment)...';
+
+        // Build FFmpeg command args based on preset & adjustments
+        const ffmpegArgs = ['-i', inputName];
+
+        // Resolution scaling
+        const resVal = document.getElementById('resOption').value;
+        if (resVal === '1080') {
+          ffmpegArgs.push('-vf', 'scale=-2:1080');
+        } else if (resVal === '720') {
+          ffmpegArgs.push('-vf', 'scale=-2:720');
+        } else if (resVal === '480') {
+          ffmpegArgs.push('-vf', 'scale=-2:480');
+        }
+
+        // Preset encoding flags
+        if (selectedPreset === 'fast') {
+          ffmpegArgs.push('-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '26');
+        } else if (selectedPreset === 'high') {
+          ffmpegArgs.push('-c:v', 'libx264', '-preset', 'slow', '-crf', '20');
+        } else {
+          // Default balanced
+          ffmpegArgs.push('-c:v', 'libx264', '-preset', 'medium', '-crf', '23');
+        }
+
+        ffmpegArgs.push('-pix_fmt', 'yuv420p');
+
+        // Audio options
+        const audioVal = document.getElementById('audioOption').value;
+        if (audioVal === 'an') {
+          ffmpegArgs.push('-an');
+        } else if (audioVal === 'copy') {
+          ffmpegArgs.push('-c:a', 'copy');
+        } else {
+          ffmpegArgs.push('-c:a', 'aac', '-b:a', '128k');
+        }
+
+        ffmpegArgs.push(outputName);
+
+        appendLog(`Running command: ffmpeg ${ffmpegArgs.join(' ')}`);
+
+        // Run conversion process
+        await ffmpeg.run(...ffmpegArgs);
+
+        processStage.innerText = 'Finalizing Output...';
+        progressStatusText.innerText = 'Generating MP4 Blob...';
+
+        const data = ffmpeg.FS('readFile', outputName);
+
+        // Cleanup virtual memory
+        try {
+          ffmpeg.FS('unlink', inputName);
+          ffmpeg.FS('unlink', outputName);
+        } catch (e) {
+          console.warn('Memory cleanup warning:', e);
+        }
+
+        // Create Blob & Blob URL
+        const convertedBlob = new Blob([data.buffer], { type: 'video/mp4' });
+        convertedBlobUrl = URL.createObjectURL(convertedBlob);
+        
+        const baseName = selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || selectedFile.name;
+        convertedFileName = `${baseName}_converted.mp4`;
+
+        // Update Output Preview & Stats
+        outputPreview.src = convertedBlobUrl;
+        statOriginal.innerText = formatBytes(selectedFile.size);
+        statConverted.innerText = formatBytes(convertedBlob.size);
+
+        const savedPct = Math.round(((selectedFile.size - convertedBlob.size) / selectedFile.size) * 100);
+        statSaved.innerText = savedPct > 0 ? `-${savedPct}%` : `+${Math.abs(savedPct)}%`;
+        statSaved.className = savedPct > 0 ? "text-xs font-mono font-semibold text-emerald-400" : "text-xs font-mono font-semibold text-amber-400";
+
+        stopTimer();
+
+        // Switch to Completed View
+        progressView.classList.add('hidden');
+        completedView.classList.remove('hidden');
+
+        showToast('Transcoding completed successfully!', 'success');
+
+      } catch (err) {
+        console.error('Transcode Error:', err);
+        stopTimer();
+        showToast('Transcoding failed: ' + err.message, 'error');
+        resetApp();
+      }
+    });
+
+    // Download Action Handler
+    downloadBtn.addEventListener('click', () => {
+      if (!convertedBlobUrl) return;
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${file.name.split('.')[0]}_converted.mp4`;
+      a.href = convertedBlobUrl;
+      a.download = convertedFileName;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
+    });
+
+    // Console Log Toggle
+    toggleLogsBtn.addEventListener('click', () => {
+      logContainer.classList.toggle('hidden');
+      logChevron.classList.toggle('rotate-180');
+    });
+
+    function appendLog(msg) {
+      const p = document.createElement('p');
+      p.innerText = msg;
+      logContainer.appendChild(p);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    // Timer Helper
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const seconds = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const secs = (seconds % 60).toString().padStart(2, '0');
+        elapsedTime.innerText = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    // Utility Formatters
+    function formatBytes(bytes, decimals = 1) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    function formatDuration(seconds) {
+      if (isNaN(seconds)) return '--:--';
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    // Toast Notification System
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.innerText = message;
+      if (type === 'error') {
+        toastIcon.className = 'ph-bold ph-warning-circle text-rose-400 text-base';
+      } else if (type === 'success') {
+        toastIcon.className = 'ph-bold ph-check-circle text-emerald-400 text-base';
+      } else {
+        toastIcon.className = 'ph-bold ph-info text-brand-400 text-base';
+      }
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 4000);
+    }
+
+    // PWA BeforeInstallPrompt Event Logic
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      pwaInstallBtn.classList.remove('hidden');
+      pwaInstallBtn.classList.add('flex');
+    });
+
+    pwaInstallBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        pwaInstallBtn.classList.add('hidden');
+      }
+      deferredPrompt = null;
+    });
+
+    // Auto load FFmpeg engine on idle
+    window.addEventListener('load', () => {
+      setTimeout(initFFmpeg, 1000);
     });
   </script>
 </body>
