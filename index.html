@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ブラウザ内 HEVC 変換アプリ</title>
+  <!-- GitHub PagesでのSharedArrayBuffer制限を解除するライブラリ -->
+  <script src="https://unpkg.com/coi-serviceworker/coi-serviceworker.min.js"></script>
+</head>
+<body>
+  <h2>HEVC / MOV 変換アプリ (ブラウザ完結型)</h2>
+  <input type="file" id="uploader" accept="video/*">
+  <button id="convertBtn">変換開始</button>
+  <p id="status"></p>
+
+  <!-- FFmpeg.wasm スクリプト読み込み -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+  <script>
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+
+    const uploader = document.getElementById('uploader');
+    const convertBtn = document.getElementById('convertBtn');
+    const status = document.getElementById('status');
+
+    convertBtn.addEventListener('click', async () => {
+      const file = uploader.files[0];
+      if (!file) return alert('ファイルを選択してください');
+
+      status.innerText = 'FFmpegを読み込み中...';
+      if (!ffmpeg.isLoaded()) {
+        await ffmpeg.load();
+      }
+
+      status.innerText = 'ファイルを読み込み中...';
+      ffmpeg.FS('writeFile', file.name, await fetchFile(file));
+
+      status.innerText = '変換中... (端末のスペックによっては時間がかかります)';
+      // H.264 + AAC に変換
+      await ffmpeg.run(
+        '-i', file.name,
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac',
+        'output.mp4'
+      );
+
+      status.innerText = '変換完了！ダウンロードを開始します...';
+      const data = ffmpeg.FS('readFile', 'output.mp4');
+
+      // ダウンロードリンクを生成
+      const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${file.name.split('.')[0]}_converted.mp4`;
+      a.click();
+    });
+  </script>
+</body>
+</html>
