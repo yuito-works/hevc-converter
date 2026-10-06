@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>FLUX // Next-Gen Web Video Transcoder</title>
+  <title>FLUX // 次世代Web動画トランスコーダー</title>
   
   <!-- Primary PWA Meta Tags -->
   <meta name="theme-color" content="#090d16">
-  <meta name="description" content="Ultra-fast, private browser-based video conversion powered by WebAssembly & FFmpeg.">
+  <meta name="description" content="WebAssemblyとFFmpegを搭載した、完全ローカル処理・高速動画変換PWA。">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="FLUX Converter">
+  <meta name="apple-mobile-web-app-title" content="FLUX 変換">
 
   <!-- Inter Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -167,7 +167,7 @@
             <span class="font-extrabold tracking-wider text-sm bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">FLUX</span>
             <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20 font-semibold tracking-wide">STUDIO</span>
           </div>
-          <span class="text-[10px] text-slate-400 -mt-0.5 font-mono">100% Client-Side WASM Engine</span>
+          <span class="text-[10px] text-slate-400 -mt-0.5 font-mono">100% ローカル WASM エンジン</span>
         </div>
       </div>
 
@@ -179,13 +179,13 @@
             <span id="wasmPulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
             <span id="wasmDot" class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
           </span>
-          <span id="wasmStatusText" class="font-mono text-[11px] text-slate-300">Engine Readying...</span>
+          <span id="wasmStatusText" class="font-mono text-[11px] text-slate-300">エンジン準備中...</span>
         </div>
 
         <!-- PWA Install Button (Hidden by default until prompt available) -->
         <button id="pwaInstallBtn" class="hidden items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 transition-all border border-slate-700">
           <i class="ph-bold ph-download-simple text-sm text-brand-400"></i>
-          <span>App Install</span>
+          <span>アプリをインストール</span>
         </button>
       </div>
     </div>
@@ -199,21 +199,21 @@
       <div class="flex items-start space-x-3">
         <i class="ph-bold ph-warning-amber text-amber-400 text-xl flex-shrink-0 mt-0.5"></i>
         <div class="space-y-1">
-          <h4 class="font-bold text-sm text-amber-300">Cross-Origin Isolation Required (SharedArrayBuffer)</h4>
+          <h4 class="font-bold text-sm text-amber-300">クロスオリジン分離（SharedArrayBuffer）が必要です</h4>
           <p class="text-amber-200/80">
-            FFmpeg.wasm requires <code class="bg-amber-900/60 px-1 py-0.5 rounded font-mono text-[11px]">SharedArrayBuffer</code> for WebAssembly video processing. 
-            When embedded in an iframe preview, browser security rules block shared memory access.
+            FFmpeg.wasm の動作には <code class="bg-amber-900/60 px-1 py-0.5 rounded font-mono text-[11px]">SharedArrayBuffer</code> が必要です。 
+            プレビューのインライン表示（iframe）内ではブラウザのセキュリティ制限により制限される場合があります。
           </p>
         </div>
       </div>
       <div class="flex flex-wrap gap-2 pt-1 pl-8">
         <button id="openNewTabBtn" class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs flex items-center space-x-1.5 transition shadow-lg shadow-amber-500/20">
           <i class="ph-bold ph-arrow-square-out"></i>
-          <span>Open in New Tab / Window</span>
+          <span>新しいタブで開く</span>
         </button>
         <button onclick="window.location.reload()" class="px-3 py-1.5 rounded-lg bg-amber-900/60 hover:bg-amber-800/80 text-amber-200 text-xs font-medium border border-amber-700/50 transition flex items-center space-x-1.5">
           <i class="ph-bold ph-arrow-clockwise"></i>
-          <span>Reload Page</span>
+          <span>ページを再読み込み</span>
         </button>
       </div>
     </div>
@@ -221,10 +221,10 @@
     <!-- App Title Header Section -->
     <div class="text-center mb-8 space-y-2">
       <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-b from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-        Browser Video Transcoder
+        ブラウザ内 動画トランスコーダー
       </h1>
       <p class="text-sm sm:text-base text-slate-400 max-w-xl mx-auto font-normal">
-        Convert HEVC, MOV, MP4, and MKV videos directly inside your browser. Zero server uploads, maximum privacy, hardware accelerated.
+        HEVC, MOV, MP4, MKV などの動画をブラウザ上で直接高速変換。サーバーへの送信なしでプライバシーを完全保護。
       </p>
     </div>
 
@@ -247,10 +247,10 @@
 
           <!-- Helper Text -->
           <h2 class="text-lg sm:text-xl font-semibold text-slate-100 mb-1">
-            Drag & drop video file here
+            ここに動画ファイルをドラッグ＆ドロップ
           </h2>
           <p class="text-xs sm:text-sm text-slate-400 mb-6">
-            or <span class="text-brand-400 hover:underline font-medium">browse from your computer / phone</span>
+            または <span class="text-brand-400 hover:underline font-medium">パソコン / スマホからファイルを選択</span>
           </p>
 
           <!-- Format Badges -->
@@ -264,7 +264,7 @@
 
           <p class="mt-6 text-[11px] text-slate-500 flex items-center space-x-1">
             <i class="ph-bold ph-shield-check text-emerald-400"></i>
-            <span>Files are processed locally in your web worker sandbox</span>
+            <span>ファイルはお使いの端末のWeb Worker内で安全にローカル処理されます</span>
           </p>
 
           <input type="file" id="uploader" accept="video/*,.mov,.hevc,.mp4,.mkv,.avi" class="hidden">
@@ -300,43 +300,43 @@
             <!-- Remove / Reselect button -->
             <button id="cancelFileBtn" class="self-end sm:self-center px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition flex items-center space-x-1">
               <i class="ph-bold ph-x"></i>
-              <span>Change File</span>
+              <span>ファイル変更</span>
             </button>
           </div>
 
           <!-- Encoding Preset Selector Grid -->
           <div class="space-y-3">
             <label class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-              <span>Transcode Settings Preset</span>
-              <span class="text-brand-400 text-[11px] font-normal font-mono">Target: H.264 / AAC MP4</span>
+              <span>トランスコード設定プリセット</span>
+              <span class="text-brand-400 text-[11px] font-normal font-mono">変換設定: H.264 / AAC MP4</span>
             </label>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <!-- Fast Preset -->
               <button type="button" data-preset="fast" class="preset-btn p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-left transition flex flex-col justify-between space-y-2">
                 <div class="flex items-center justify-between w-full">
-                  <span class="text-xs font-bold text-slate-200">Fast Convert</span>
+                  <span class="text-xs font-bold text-slate-200">高速変換</span>
                   <i class="ph-bold ph-lightning text-amber-400 text-sm"></i>
                 </div>
-                <p class="text-[11px] text-slate-400 leading-snug">Ultrafast encoding, ideal for quick drafts and low CPU load.</p>
+                <p class="text-[11px] text-slate-400 leading-snug">超高速エンコード。手軽な確認やCPU負荷を極力抑えたい時に最適。</p>
               </button>
 
               <!-- Balanced Preset (Selected Default) -->
               <button type="button" data-preset="balanced" class="preset-btn active p-3.5 rounded-xl border-2 border-brand-500 bg-brand-500/10 text-left transition flex flex-col justify-between space-y-2">
                 <div class="flex items-center justify-between w-full">
-                  <span class="text-xs font-bold text-white">Balanced (Recommended)</span>
+                  <span class="text-xs font-bold text-white">バランス (推奨)</span>
                   <i class="ph-bold ph-sliders text-brand-400 text-sm"></i>
                 </div>
-                <p class="text-[11px] text-slate-300 leading-snug">Optimal trade-off between speed, high fidelity, and file size.</p>
+                <p class="text-[11px] text-slate-300 leading-snug">画質・ファイルサイズ・変換速度の最もバランスが良い標準設定。</p>
               </button>
 
               <!-- High Quality Preset -->
               <button type="button" data-preset="high" class="preset-btn p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 text-left transition flex flex-col justify-between space-y-2">
                 <div class="flex items-center justify-between w-full">
-                  <span class="text-xs font-bold text-slate-200">High Quality</span>
+                  <span class="text-xs font-bold text-slate-200">高画質</span>
                   <i class="ph-bold ph-sparkle text-cyan-400 text-sm"></i>
                 </div>
-                <p class="text-[11px] text-slate-400 leading-snug">Slower pass for maximum clarity and best compression efficiency.</p>
+                <p class="text-[11px] text-slate-400 leading-snug">処理時間はかかりますが、最高レベルの画質と高圧縮効率を実現。</p>
               </button>
             </div>
           </div>
@@ -344,20 +344,20 @@
           <!-- Advanced Video Adjustments (Resolution Scale) -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-800/60">
             <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Output Resolution</label>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">出力解像度</label>
               <select id="resOption" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
-                <option value="original">Original Dimensions</option>
-                <option value="1080">1080p Full HD (Scale height 1080)</option>
-                <option value="720">720p HD (Scale height 720)</option>
-                <option value="480">480p SD (Scale height 480)</option>
+                <option value="original">オリジナル解像度を維持</option>
+                <option value="1080">1080p フルHD (高さ 1080px にリサイズ)</option>
+                <option value="720">720p HD (高さ 720px にリサイズ)</option>
+                <option value="480">480p SD (高さ 480px にリサイズ)</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1.5">Audio Track</label>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">音声トラック</label>
               <select id="audioOption" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
-                <option value="aac">Convert to AAC (High Compatibility)</option>
-                <option value="copy">Stream Copy Audio (Faster)</option>
-                <option value="an">Mute Audio Track</option>
+                <option value="aac">AAC形式に変換 (最も高い再生互換性)</option>
+                <option value="copy">音声ストリームをそのまま保持 (高速)</option>
+                <option value="an">音声を消去 (ミュート)</option>
               </select>
             </div>
           </div>
@@ -365,7 +365,7 @@
           <!-- Convert Action Button -->
           <button id="startConvertBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-brand-600 via-brand-500 to-cyan-500 hover:from-brand-500 hover:to-cyan-400 text-white text-sm font-semibold shadow-lg shadow-brand-500/25 active:scale-[0.99] transition flex items-center justify-center space-x-2">
             <i class="ph-bold ph-play text-base"></i>
-            <span>Start Conversion Now</span>
+            <span>動画変換を開始する</span>
           </button>
         </div>
       </div>
@@ -383,8 +383,8 @@
                 <i class="ph-bold ph-spinner text-lg"></i>
               </div>
               <div>
-                <h3 id="processStage" class="text-sm font-semibold text-slate-100">Transcoding Video...</h3>
-                <p class="text-xs text-slate-400 font-mono">H.264 Encoder Running</p>
+                <h3 id="processStage" class="text-sm font-semibold text-slate-100">動画を変換中...</h3>
+                <p class="text-xs text-slate-400 font-mono">H.264 エンコーダー実行中</p>
               </div>
             </div>
             <div class="text-right">
@@ -395,7 +395,7 @@
           <!-- Progress Visualizer Bar & Ring -->
           <div class="space-y-2">
             <div class="flex justify-between items-center text-xs">
-              <span id="progressStatusText" class="text-slate-300 font-medium">Encoding video frames...</span>
+              <span id="progressStatusText" class="text-slate-300 font-medium">動画フレームを処理中...</span>
               <span id="progressPercent" class="font-mono text-brand-400 font-bold text-sm">0%</span>
             </div>
             
@@ -409,11 +409,11 @@
           <div class="pt-2">
             <button id="toggleLogsBtn" class="text-xs font-mono text-slate-400 hover:text-slate-200 flex items-center space-x-1.5 focus:outline-none">
               <i class="ph-bold ph-terminal-window"></i>
-              <span>Console Output Logs</span>
+              <span>コンソールログを出力表示</span>
               <i id="logChevron" class="ph-bold ph-caret-down transition-transform duration-200"></i>
             </button>
             <div id="logContainer" class="hidden mt-3 p-3 rounded-lg bg-slate-950 border border-slate-800/80 h-36 overflow-y-auto font-mono text-[11px] text-slate-400 space-y-1">
-              <p class="text-brand-400">[System initialized]</p>
+              <p class="text-brand-400">[システム初期化完了]</p>
             </div>
           </div>
         </div>
@@ -431,8 +431,8 @@
           </div>
 
           <div>
-            <h2 class="text-xl sm:text-2xl font-extrabold text-slate-100">Transcoding Complete!</h2>
-            <p class="text-xs sm:text-sm text-slate-400 mt-1">Your video is optimized and ready for web playback & sharing.</p>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-slate-100">動画変換が完了しました！</h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1">Web再生や SNS 共有に最適化された MP4 ファイルが生成されました。</p>
           </div>
 
           <!-- Video Output Preview Player -->
@@ -443,15 +443,15 @@
           <!-- Compression Stats Summary Card -->
           <div class="max-w-md mx-auto p-4 rounded-xl bg-slate-900/80 border border-slate-800 grid grid-cols-3 gap-2 text-center">
             <div>
-              <span class="block text-[10px] uppercase font-mono text-slate-500">Original</span>
+              <span class="block text-[10px] uppercase font-mono text-slate-500">元のサイズ</span>
               <span id="statOriginal" class="text-xs font-mono font-semibold text-slate-300">0 MB</span>
             </div>
             <div>
-              <span class="block text-[10px] uppercase font-mono text-slate-500">Converted</span>
+              <span class="block text-[10px] uppercase font-mono text-slate-500">変換後</span>
               <span id="statConverted" class="text-xs font-mono font-semibold text-brand-400">0 MB</span>
             </div>
             <div>
-              <span class="block text-[10px] uppercase font-mono text-slate-500">Saved</span>
+              <span class="block text-[10px] uppercase font-mono text-slate-500">削減率</span>
               <span id="statSaved" class="text-xs font-mono font-semibold text-emerald-400">0%</span>
             </div>
           </div>
@@ -460,11 +460,11 @@
           <div class="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto pt-2">
             <button id="downloadBtn" class="w-full sm:flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center justify-center space-x-2">
               <i class="ph-bold ph-download-simple text-base"></i>
-              <span>Download MP4</span>
+              <span>MP4 をダウンロード</span>
             </button>
             <button id="resetBtn" class="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold transition border border-slate-700 flex items-center justify-center space-x-1.5">
               <i class="ph-bold ph-arrow-counter-clockwise"></i>
-              <span>Convert Another</span>
+              <span>別の動画を変換</span>
             </button>
           </div>
         </div>
@@ -481,7 +481,7 @@
   <!-- Notification Toast Container -->
   <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 max-w-sm px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl text-xs text-slate-200 flex items-center space-x-2">
     <i id="toastIcon" class="ph-bold ph-info text-brand-400 text-base"></i>
-    <span id="toastMsg">Notification message</span>
+    <span id="toastMsg">通知メッセージ</span>
   </div>
 
   <!-- FFmpeg.wasm Script Loader -->
@@ -491,8 +491,8 @@
     // Dynamic Inline PWA Manifest creation
     (function injectPWAManifest() {
       const manifestObj = {
-        name: "FLUX Video Transcoder",
-        short_name: "FLUX",
+        name: "FLUX 動画トランスコーダー",
+        short_name: "FLUX 変換",
         start_url: "./",
         display: "standalone",
         background_color: "#090d16",
@@ -574,7 +574,7 @@
       const isolationBanner = document.getElementById('isolationBanner');
       if (!isSupported && isolationBanner) {
         isolationBanner.classList.remove('hidden');
-        updateWasmStatus('error', 'Isolation Required');
+        updateWasmStatus('error', '環境分離が必要');
       }
       return isSupported;
     }
@@ -590,7 +590,7 @@
       if (ffmpeg) return;
 
       if (!checkSharedArrayBufferSupport()) {
-        showToast('SharedArrayBuffer is restricted in this preview environment. Open in new tab.', 'error');
+        showToast('プレビュー環境では SharedArrayBuffer が制限されています。「新しいタブで開く」をお試しください。', 'error');
         return;
       }
 
@@ -614,14 +614,14 @@
           }
         });
 
-        updateWasmStatus('loading', 'Loading WASM...');
+        updateWasmStatus('loading', 'WASM読み込み中...');
         await ffmpeg.load();
-        updateWasmStatus('ready', 'Engine Ready');
+        updateWasmStatus('ready', 'エンジン準備完了');
       } catch (err) {
         console.error('FFmpeg Init Error:', err);
-        updateWasmStatus('error', 'WASM Init Failed');
+        updateWasmStatus('error', 'WASM初期化失敗');
         checkSharedArrayBufferSupport();
-        showToast('Failed to load WebAssembly engine. SharedArrayBuffer restricted.', 'error');
+        showToast('WebAssemblyエンジンの読み込みに失敗しました。', 'error');
       }
     }
 
@@ -673,7 +673,7 @@
     // File Selection Handler
     function handleFileSelect(file) {
       if (!file.type.startsWith('video/') && !/\.(mov|hevc|mp4|mkv|avi|webm)$/i.test(file.name)) {
-        showToast('Please select a valid video file.', 'error');
+        showToast('有効な動画ファイルを選択してください。', 'error');
         return;
       }
 
@@ -746,8 +746,8 @@
       selectedView.classList.add('hidden');
       progressView.classList.remove('hidden');
       
-      processStage.innerText = 'Initializing WASM Engine...';
-      progressStatusText.innerText = 'Preparing memory buffer...';
+      processStage.innerText = 'WASMエンジンを初期化中...';
+      progressStatusText.innerText = 'メモリバッファを準備しています...';
       progressBar.style.width = '2%';
       progressPercent.innerText = '2%';
 
@@ -758,16 +758,16 @@
           await initFFmpeg();
         }
 
-        processStage.innerText = 'Reading Video File...';
-        progressStatusText.innerText = 'Loading file into WebAssembly Virtual FS...';
+        processStage.innerText = '動画ファイルを読み込み中...';
+        progressStatusText.innerText = 'WebAssemblyの仮想ファイルシステムへ読み込んでいます...';
         
         const inputName = 'input_' + Date.now() + '_' + selectedFile.name.replace(/[^a-zA-Z0-9.]/g, '_');
         const outputName = 'output_' + Date.now() + '.mp4';
 
         ffmpeg.FS('writeFile', inputName, await fetchFile(selectedFile));
 
-        processStage.innerText = 'Transcoding to H.264...';
-        progressStatusText.innerText = 'Encoding frames (this may take a moment)...';
+        processStage.innerText = 'H.264 へトランスコード中...';
+        progressStatusText.innerText = 'フレームをエンコードしています（しばらくお待ちください）...';
 
         // Build FFmpeg command args based on preset & adjustments
         const ffmpegArgs = ['-i', inputName];
@@ -806,13 +806,13 @@
 
         ffmpegArgs.push(outputName);
 
-        appendLog(`Running command: ffmpeg ${ffmpegArgs.join(' ')}`);
+        appendLog(`実行コマンド: ffmpeg ${ffmpegArgs.join(' ')}`);
 
         // Run conversion process
         await ffmpeg.run(...ffmpegArgs);
 
-        processStage.innerText = 'Finalizing Output...';
-        progressStatusText.innerText = 'Generating MP4 Blob...';
+        processStage.innerText = '出力ファイルを生成中...';
+        progressStatusText.innerText = 'MP4 Blobを構築しています...';
 
         const data = ffmpeg.FS('readFile', outputName);
 
@@ -846,12 +846,12 @@
         progressView.classList.add('hidden');
         completedView.classList.remove('hidden');
 
-        showToast('Transcoding completed successfully!', 'success');
+        showToast('動画のトランスコードが完了しました！', 'success');
 
       } catch (err) {
         console.error('Transcode Error:', err);
         stopTimer();
-        showToast('Transcoding failed: ' + err.message, 'error');
+        showToast('トランスコードに失敗しました: ' + err.message, 'error');
         resetApp();
       }
     });
